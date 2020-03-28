@@ -1,18 +1,15 @@
 package com.example.osmz_cv1;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,9 +27,10 @@ public class ThreadSocketServer extends Thread {
     private Socket s;
     private Handler h;
     private Semaphore semaphore;
-    private byte[] mPreviewFrameBuffer;
     private HttpServerActivity activity;
     private ByteArrayOutputStream imageBuffer;
+    private static DataOutputStream stream;
+    private boolean canClose = true;
 
     ThreadSocketServer(Socket s, Handler handle, Semaphore semaphoreAvailable, HttpServerActivity a) {
         this.s = s;
@@ -59,10 +57,6 @@ public class ThreadSocketServer extends Thread {
                         line = in.readLine();
                     }
                 }
-//                while(!(line = in.readLine()).isEmpty()){
-//                    requestList.add(line);
-//                    Log.d("SERVER", line);
-//                }
             }catch(IOException e){
                 s.close();
             }
@@ -88,116 +82,129 @@ public class ThreadSocketServer extends Thread {
             }
 
             Log.d("TEST", fileName);
-            if(fileName.equals("/snapchot/")) {
-                fileName = "/snapchot.jpg/";
-                File file = new File(path + fileName);
-                FileInputStream fs = new FileInputStream(path + fileName);
-                out.write("HTTP/1.1 200 OK\r\n");
-                out.write("Content-Type: " + "text/html" + "\r\n");
-                out.write("Content-Length: " + file.length() + "\r\n");
-                out.write("\r\n");
-                out.write("<html><head><title>Snapchot</title><meta http-equiv='refresh' content='5'></head><body><h1>Snapchot</h1><img style='transform: rotate(90deg);' src='http://127.0.0.1:12345/snapchot.jpg'></body></html>\r\n");
-                out.flush();
-
-                returnHandle("File: ", fileName, file.length());
-
-            }
-            /*else if(fileName.equals("/camera/snapshot/")) {
-                mCamera.takePicture(null, null, webPicture);
-                //File file = new File(path + fileName);
-                out.write("HTTP/1.1 200 OK\r\n");
-                out.write("Content-Type: " + "image/jpeg" + "\r\n");
-                //out.write("Content-Length: " + file.length() + "\r\n");
-
-                out.write("\r\n");
-                out.flush();
-
-
-                //returnHandle("File: ", fileName, file.length());
-
-                /*o.write(this.mPreviewFrameBuffer);*/
-
-           /* }*/
-            else {
-                File file = new File(path + fileName);
-                if (file.exists() && file.isFile()) {
+            switch (fileName) {
+                case "/snapshot/": {
+                    fileName = "/snapchot.jpg/";
+                    File file = new File(path + fileName);
                     FileInputStream fs = new FileInputStream(path + fileName);
-                    Log.d("SERVER", "File Exists");
-                    out.write("HTTP/1.1 200 OK\r\n");
-                    out.write("Content-Type: " + getMimeType(fileName) + "\r\n");
-                    out.write("Content-Length: " + file.length() + "\r\n");
-                    out.write("\r\n");
-                    out.flush();
-
-                    returnHandle("File: ", fileName, file.length());
-
-                    int len = 0;
-                    byte[] buffer = new byte[2048];
-                    while ((len = fs.read(buffer)) > 0) {
-                        o.write(buffer, 0, len);
-                    }
-                }
-                else if (file.exists() && file.isDirectory()) {
-                    String[] pathnames;
-                    pathnames = file.list();
                     out.write("HTTP/1.1 200 OK\r\n");
                     out.write("Content-Type: " + "text/html" + "\r\n");
                     out.write("Content-Length: " + file.length() + "\r\n");
                     out.write("\r\n");
-                    out.write("<html><head><title>List File</title></head><body><h1>Index of: ~" + fileName + "</h1>");
-                    out.write("<table><tbody>");
-                    out.write("<tr><th style='width:150px; text-align: left;'>Name</th><th style='width:80px;'>Type</th><th style='width:100px;'>Last Modified</th><th style='width:80px; text-align: right;'>Size</th></tr>");
-                    out.write("<tr><th colspan='4'><hr></th></tr>");
-                    out.write("<tr><td><a href='" + fileName + "..'>Parent Folder</a></td></tr>");
-                    for (String pathname : pathnames) {
-                        File file2 = new File(path + fileName + pathname);
-                        float fileSize;
-                        String sizeExtension;
-                        Date date = new Date(file2.lastModified());
-                        SimpleDateFormat df2 = new SimpleDateFormat("dd/MM/yyyy");
-                        String lastModify = df2.format(date);
-                        if(file2.length() > 999) {
-                            fileSize = (file2.length()/1024);
-                            sizeExtension = "KB";
-                        }
-                        else if (file2.length()/1024 > 999){
-                            fileSize = (file2.length()/1024)/1024;
-                            sizeExtension = "MB";
-                        }
-                        else {
-                            fileSize = file2.length();
-                            sizeExtension = "B";
-                        }
-                        String type = getMimeType(fileName + pathname);
-                        out.write("<tr><td><a href=' " + fileName + pathname + "'>" + pathname + "</a></td><td>" + ((type == null) ? "folder" : type) + "</td><td style='text-align: right;'>" + lastModify + "</td><td style='text-align: right;'>" + fileSize + sizeExtension + "</td></tr>");
-                    }
-                    out.write("<tr><th colspan='4'><hr></th></tr>");
-                    out.write("</tbody></table>");
-                    out.write("</body></html");
+                    out.write("<html><head><title>Snapchot</title><meta http-equiv='refresh' content='5'></head><body><img style='transform: rotate(90deg);max-width: auto; height: 400px;' src='http://127.0.0.1:12345/snapchot.jpg'></body></html>\r\n");
                     out.flush();
 
-                    returnHandle("Directory: ", fileName, 0);
+                    returnHandle("Snapchot: ", fileName, file.length());
 
-                } else {
-                    Log.d("SERVER", "File not found");
-                    out.write("HTTP/1.1 404 Not Found\r\n");
+                    break;
+                }
+                case "/camera/snapshot/":
+                    byte[] picture = activity.takePicture();
+                    out.write("HTTP/1.0 200 OK\r\n");
+                    out.write("Content-Length: " + picture.length + "\r\n");
+                    out.write("Content-Type: image/jpeg\r\n");
                     out.write("\r\n");
-                    out.write("<html><head><title>404 Not Found</title></head><body><h1>File not found - 404</h1></body></html>\r\n");
                     out.flush();
 
-                    returnHandle("404 Not Found: ", fileName, 0);
+                    o.write(activity.takePicture());
+                    o.flush();
 
+                    returnHandle("Camera snapchot: ", fileName, picture.length);
+                    break;
+                case "/camera/stream/":
+                    stream = new DataOutputStream(s.getOutputStream());
+                    try {
+                        Log.d("onPreviewFrame", "stream");
+                        stream.write(("HTTP/1.0 200 OK\r\n" +
+                                "Content-Type: multipart/x-mixed-replace; boundary=\"OSMZ_boundary\"\r\n").getBytes());
+                        stream.flush();
+
+                        canClose = false;
+
+                        sendBoundary();
+                    } catch (IOException e) {
+                        Log.d("ERROR:", e.getLocalizedMessage());
+                    }
+
+                    break;
+                default: {
+                    File file = new File(path + fileName);
+                    if (file.exists() && file.isFile()) {
+                        FileInputStream fs = new FileInputStream(path + fileName);
+                        Log.d("SERVER", "File Exists");
+                        out.write("HTTP/1.1 200 OK\r\n");
+                        out.write("Content-Type: " + getMimeType(fileName) + "\r\n");
+                        out.write("Content-Length: " + file.length() + "\r\n");
+                        out.write("\r\n");
+                        out.flush();
+
+                        returnHandle("File: ", fileName, file.length());
+
+                        int len = 0;
+                        byte[] buffer = new byte[2048];
+                        while ((len = fs.read(buffer)) > 0) {
+                            o.write(buffer, 0, len);
+                        }
+                    } else if (file.exists() && file.isDirectory()) {
+                        String[] pathnames;
+                        pathnames = file.list();
+                        out.write("HTTP/1.1 200 OK\r\n");
+                        out.write("Content-Type: " + "text/html" + "\r\n");
+                        out.write("Content-Length: " + file.length() + "\r\n");
+                        out.write("\r\n");
+                        out.write("<html><head><title>List File</title></head><body><h1>Index of: ~" + fileName + "</h1>");
+                        out.write("<table><tbody>");
+                        out.write("<tr><th style='width:150px; text-align: left;'>Name</th><th style='width:80px;'>Type</th><th style='width:100px;'>Last Modified</th><th style='width:80px; text-align: right;'>Size</th></tr>");
+                        out.write("<tr><th colspan='4'><hr></th></tr>");
+                        out.write("<tr><td><a href='" + fileName + "..'>Parent Folder</a></td></tr>");
+                        for (String pathname : pathnames) {
+                            File file2 = new File(path + fileName + pathname);
+                            float fileSize;
+                            String sizeExtension;
+                            Date date = new Date(file2.lastModified());
+                            SimpleDateFormat df2 = new SimpleDateFormat("dd/MM/yyyy");
+                            String lastModify = df2.format(date);
+                            if (file2.length() > 999) {
+                                fileSize = (file2.length() / 1024);
+                                sizeExtension = "KB";
+                            } else if (file2.length() / 1024 > 999) {
+                                fileSize = (file2.length() / 1024) / 1024;
+                                sizeExtension = "MB";
+                            } else {
+                                fileSize = file2.length();
+                                sizeExtension = "B";
+                            }
+                            String type = getMimeType(fileName + pathname);
+                            out.write("<tr><td><a href=' " + fileName + pathname + "'>" + pathname + "</a></td><td>" + ((type == null) ? "folder" : type) + "</td><td style='text-align: right;'>" + lastModify + "</td><td style='text-align: right;'>" + fileSize + sizeExtension + "</td></tr>");
+                        }
+                        out.write("<tr><th colspan='4'><hr></th></tr>");
+                        out.write("</tbody></table>");
+                        out.write("</body></html");
+                        out.flush();
+
+                        returnHandle("Directory: ", fileName, 0);
+
+                    } else {
+                        Log.d("SERVER", "File not found");
+                        out.write("HTTP/1.1 404 Not Found\r\n");
+                        out.write("\r\n");
+                        out.write("<html><head><title>404 Not Found</title></head><body><h1>File not found - 404</h1></body></html>\r\n");
+                        out.flush();
+
+                        returnHandle("404 Not Found: ", fileName, 0);
+
+                    }
+                    break;
                 }
             }
+            out.flush();
 
-            s.close();
-            Log.d("SERVER", "Socket Closed");
-
+            if (canClose) {
+                s.close();
+                Log.d("SERVER", "Socket Closed");
+            }
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            semaphore.release();
-            Log.d("SERVER", "Uvolnění, aktuální počet: " + semaphore.availablePermits());
         }
     }
 
@@ -218,5 +225,39 @@ public class ThreadSocketServer extends Thread {
             type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
         }
         return type;
+    }
+
+    private void sendBoundary() {
+        if (stream != null) {
+            try {
+                Log.d("onPreviewFrame", "stream boundary");
+                byte[] baos = activity.takePicture();
+
+                imageBuffer.reset();
+                imageBuffer.write(baos);
+                imageBuffer.flush();
+
+                stream.write(("\n--OSMZ_boundary\n" +
+                        "Content-type: image/jpeg\n" +
+                        "Content-Length: " + imageBuffer.size() + "\n\n").getBytes());
+
+                stream.write(imageBuffer.toByteArray());
+                stream.write(("\n").getBytes());
+
+                stream.flush();
+
+                //returnHandle("Streaming: ", "Live", (long) imageBuffer.size());
+
+                h.postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        Log.d("DEBUG", "RUN sendBoundary delay");
+                        sendBoundary();
+                    }
+                }, 1000);
+            } catch (IOException e) {
+                Log.d("ERROR:", "Boundary error: " + e.getLocalizedMessage());
+            }
+        }
     }
 }

@@ -4,25 +4,25 @@ import android.annotation.SuppressLint;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.os.Bundle;
 import android.app.Activity;
 import android.os.Environment;
 import android.os.Message;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.NumberPicker;
 import android.widget.TextView;
-import android.content.Context;
-import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.Toast;
-
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -57,24 +57,20 @@ public class HttpServerActivity extends Activity implements OnClickListener{
         /*
          * Camera init
          */
-		// Create an instance of Camera
 		mCamera = getCameraInstance();
-		//mCamera.setPreviewCallback(mPrevCall);
+		mCamera.setPreviewCallback(mPrevCall);
 		// Create our Preview view and set it as the content of our activity.
 		mPreview = new CameraPreview(this, this.mCamera, this.mPicture);
 		FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
 		preview.addView(mPreview);
 		mCamera.startPreview();
 
-
-
-
+		// Task with save images
 		Button captureButton = (Button) findViewById(R.id.button_capture);
 		captureButton.setOnClickListener(
 				new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
-						// get an image from the camera
 						startTimer();}
 				}
 		);
@@ -113,6 +109,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		});
     }
 
+    //region Message Handler
 	@SuppressLint("HandlerLeak")
 	private Handler handler = new Handler() {
 		@Override
@@ -162,6 +159,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 			text.setText("At: " + currentTime + "\n" + typeOfRequest + "\t" + name + "\n" + "Velikost souboru" + "\t" + roundTwoDecimals(size) + sizeExtension + "\t" + "\n" + "\n" + text.getText());
 		}
 	};
+	//endregion
 
 	@Override
 	public void onClick(View v) {
@@ -196,9 +194,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		return c;
 	}
 
-	/*
-	* Timer section - Úkol 1 - refresh 5 sec
-	 */
+	//region Timer for take and save picture
 	public void startTimer() {
 		timer = new Timer();
 		initializeTimerTask();
@@ -234,19 +230,57 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 			}
 		};
 	}
-	/*
-	 * Timer section - Úkol 1 - refresh 5 sec
-	 */
+	//endregion
 
 
+	private Camera.PreviewCallback mPrevCall = new Camera.PreviewCallback()
+	{
+		@Override
+		public void onPreviewFrame(byte[] bytes, Camera camera)
+		{
+			try {
+				imageBuffer = convertoToJpeg(bytes, camera);
+			} catch (Exception e) {
+				Log.d("ERROR", "convert image error");
+			}
+		}
+	};
 
-	// copy
+	public byte[] convertoToJpeg(byte[] data, Camera camera) {
+		YuvImage image = new YuvImage(data, ImageFormat.NV21, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height, null);
+
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		image.compressToJpeg(new Rect(0, 0, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height), 100, baos);//this line decreases the image quality
+
+		return baos.toByteArray();
+	}
+
+	public static Bitmap rotate(Bitmap bitmap, int degree) {
+		int w = bitmap.getWidth();
+		int h = bitmap.getHeight();
+
+		Matrix mtx = new Matrix();
+		mtx.setRotate(degree);
+
+		return Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, true);
+	}
+
+
 	private Camera.PictureCallback mPicture = new Camera.PictureCallback()
 	{
 		@Override
 		public void onPictureTaken(byte[] data, Camera camera)
 		{
+			mCamera.startPreview();
+
+			Bitmap rotateImageData = BitmapFactory.decodeByteArray(data, 0, data.length);
+			rotateImageData = rotate(rotateImageData, 90);
+			ByteArrayOutputStream stream = new ByteArrayOutputStream();
+			rotateImageData.compress(Bitmap.CompressFormat.JPEG,100,stream);
+			imageBuffer = data;
+/*
 			File pictureFile = new File(Environment.getExternalStorageDirectory().getPath() + "/OSMZ" + File.separator + "snapchot.jpg");
+
 			try {
 				FileOutputStream fos = new FileOutputStream(pictureFile);
 				fos.write(data);
@@ -255,23 +289,17 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 				Log.d("CAMERA", "File not found: " + e.getMessage());
 			} catch (IOException e) {
 				Log.d("CAMERA", "Error accessing file: " + e.getMessage());
-			}
+			}*/
 		}
 	};
 
-//	public void takePicture(){
-//		if (mCamera == null) {
-//			mCamera = getCameraInstance();
-//		}
-//		mCamera.takePicture(null, null, mPicture);
-//		//mCamera.startPreview();
-//
-//		cameraHandler.postDelayed(new Runnable() {
-//			@Override
-//			public void run() {
-//				takePicture();
-//			}
-//		}, 5000);
-//	}
+	public byte[] takePicture()
+	{
+		Bitmap rotateImageData = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.length);
+		rotateImageData = rotate(rotateImageData, 90);
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		rotateImageData.compress(Bitmap.CompressFormat.JPEG,100,stream);
+		return stream.toByteArray();
+	}
 }
 
