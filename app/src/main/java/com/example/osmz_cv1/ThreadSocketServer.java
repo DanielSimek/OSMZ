@@ -294,7 +294,7 @@ public class ThreadSocketServer extends Thread {
                 stream.flush();
 
                 returnHandle("Streaming: ", "Live", (long) imageBuffer.size());
-                
+
             } catch (IOException e) {
                 Log.d("ERROR:", "Streaming error: " + e.getLocalizedMessage());
             }

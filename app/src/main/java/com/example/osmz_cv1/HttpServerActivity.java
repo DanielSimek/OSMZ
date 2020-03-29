@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.os.Bundle;
@@ -40,12 +39,11 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 
 	private SocketServer s;
 	private double sendSize = 0;
-	private int maxAvailable;
+	private int maxAvailable = 1;
 	private Camera mCamera;
 	private CameraPreview mPreview;
 	private Timer timer;
 	private TimerTask timerTask;
-	private Handler cameraHandler = new Handler();
 	private byte[] imageBuffer;
 	
     @Override

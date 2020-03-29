@@ -19,7 +19,7 @@ public class SocketServer extends Thread {
 	boolean bRunning;
 	private Handler handle;
 	private Semaphore semaphoreAvailable;
-	private int maxThreads = 1;
+	private int maxThreads;
 	private HttpServerActivity activity;
 
 
