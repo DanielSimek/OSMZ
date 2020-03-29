@@ -74,9 +74,8 @@ public class SocketServer extends Thread {
         finally {
         	serverSocket = null;
         	bRunning = false;
-			semaphoreAvailable.release();
-			Log.d("SERVER", "Uvolnění, aktuální počet: " + semaphoreAvailable.availablePermits());
         }
+
     }
 
 }

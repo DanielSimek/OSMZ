@@ -6,12 +6,14 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
+import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.os.Bundle;
 import android.app.Activity;
 import android.os.Environment;
 import android.os.Message;
+import android.os.StrictMode;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -64,6 +66,9 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
 		preview.addView(mPreview);
 		mCamera.startPreview();
+		//boundary fix
+		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
+		StrictMode.setThreadPolicy(policy);
 
 		// Task with save images
 		Button captureButton = (Button) findViewById(R.id.button_capture);
@@ -232,7 +237,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 	}
 	//endregion
 
-
+	//region PreviewCallback
 	private Camera.PreviewCallback mPrevCall = new Camera.PreviewCallback()
 	{
 		@Override
@@ -245,6 +250,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 			}
 		}
 	};
+	//endregion
 
 	public byte[] convertoToJpeg(byte[] data, Camera camera) {
 		YuvImage image = new YuvImage(data, ImageFormat.NV21, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height, null);
@@ -265,7 +271,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		return Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, true);
 	}
 
-
+	//region /PictureCallback
 	private Camera.PictureCallback mPicture = new Camera.PictureCallback()
 	{
 		@Override
@@ -273,12 +279,6 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		{
 			mCamera.startPreview();
 
-			Bitmap rotateImageData = BitmapFactory.decodeByteArray(data, 0, data.length);
-			rotateImageData = rotate(rotateImageData, 90);
-			ByteArrayOutputStream stream = new ByteArrayOutputStream();
-			rotateImageData.compress(Bitmap.CompressFormat.JPEG,100,stream);
-			imageBuffer = data;
-/*
 			File pictureFile = new File(Environment.getExternalStorageDirectory().getPath() + "/OSMZ" + File.separator + "snapchot.jpg");
 
 			try {
@@ -289,12 +289,12 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 				Log.d("CAMERA", "File not found: " + e.getMessage());
 			} catch (IOException e) {
 				Log.d("CAMERA", "Error accessing file: " + e.getMessage());
-			}*/
+			}
 		}
 	};
+	//endregion
 
-	public byte[] takePicture()
-	{
+	public byte[] takePicture() {
 		Bitmap rotateImageData = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.length);
 		rotateImageData = rotate(rotateImageData, 90);
 		ByteArrayOutputStream stream = new ByteArrayOutputStream();

@@ -69,9 +69,7 @@ public class ThreadSocketServer extends Thread {
                 e.printStackTrace();
             }
 
-
             Log.d("SERVER-Path", path);
-            Log.d("SERVER-Filename", fileName);
 
             if (!(fileName.endsWith("/"))) {
                 fileName = fileName + "/";
@@ -81,7 +79,8 @@ public class ThreadSocketServer extends Thread {
                 fileName = "/index.html";
             }
 
-            Log.d("TEST", fileName);
+
+            Log.d("SERVER-Filename", fileName);
             switch (fileName) {
                 case "/snapshot/": {
                     fileName = "/snapchot.jpg/";
@@ -118,10 +117,16 @@ public class ThreadSocketServer extends Thread {
                         stream.write(("HTTP/1.0 200 OK\r\n" +
                                 "Content-Type: multipart/x-mixed-replace; boundary=\"OSMZ_boundary\"\r\n").getBytes());
                         stream.flush();
-
                         canClose = false;
 
-                        sendBoundary();
+                        h.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                streaming();
+                            }
+                        }, 500);
+
+                        o.flush();
                     } catch (IOException e) {
                         Log.d("ERROR:", e.getLocalizedMessage());
                     }
@@ -145,6 +150,49 @@ public class ThreadSocketServer extends Thread {
                         while ((len = fs.read(buffer)) > 0) {
                             o.write(buffer, 0, len);
                         }
+                    } else if (fileName.contains("/cgi-bin/")) {
+                        fileName = fileName.substring(0, fileName.length() - 1);
+                        String commands[] = fileName.split("/");
+
+                        try
+                        {
+                            String urlArray[] = fileName.split("/cgi-bin/");
+                            String commandWithArgs = urlArray[1];
+                            commandWithArgs = commandWithArgs.replace("%20", " ");
+                            String commandsArray[] = commandWithArgs.split(" ");
+                            String contentHTML = "<html><head><title>cgi-bin: " + commandsArray[0] + "</title></head><body><h1>Command: " + commandsArray[0] + "</h1>";
+                            ProcessBuilder p = new ProcessBuilder(commandsArray);
+                            Process process = p.start();
+                            String resultLine;
+                            BufferedReader stdOut = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                            while ((resultLine = stdOut.readLine()) != null) {
+                                contentHTML += resultLine + "<br>";
+                            }
+                            BufferedReader stdErr = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                            while ((resultLine = stdErr.readLine()) != null) {
+                                contentHTML += resultLine + "<br>";
+                            }
+
+                            contentHTML +="</body></html>";
+
+                            String bodyHTML = "";
+                            bodyHTML += "HTTP/1.1 200 OK\r\n" +
+                                    "Content-Type: text/html\r\n" +
+                                    "Content-Length: " + contentHTML.length() + "\r\n" +
+                                    "\r\n" +
+                                    contentHTML;
+
+                            out.write(bodyHTML);
+                            out.flush();
+
+                            returnHandle("cgi-bin: ", fileName, Long.valueOf(bodyHTML.length()));
+                        }
+                        catch (Exception e)
+                        {
+                            Log.d("ProcessOutput", "just failed: " + e.getMessage());
+
+                        }
+
                     } else if (file.exists() && file.isDirectory()) {
                         String[] pathnames;
                         pathnames = file.list();
@@ -198,13 +246,16 @@ public class ThreadSocketServer extends Thread {
                 }
             }
             out.flush();
-
             if (canClose) {
                 s.close();
                 Log.d("SERVER", "Socket Closed");
+
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            semaphore.release();
+            Log.d("SERVER", "Uvolnění, aktuální počet: " + semaphore.availablePermits());
         }
     }
 
@@ -227,36 +278,25 @@ public class ThreadSocketServer extends Thread {
         return type;
     }
 
-    private void sendBoundary() {
+    private void streaming() {
         if (stream != null) {
             try {
-                Log.d("onPreviewFrame", "stream boundary");
-                byte[] baos = activity.takePicture();
+                byte[] imagebuf = activity.takePicture();
 
                 imageBuffer.reset();
-                imageBuffer.write(baos);
+                imageBuffer.write(imagebuf);
                 imageBuffer.flush();
-
                 stream.write(("\n--OSMZ_boundary\n" +
                         "Content-type: image/jpeg\n" +
                         "Content-Length: " + imageBuffer.size() + "\n\n").getBytes());
-
                 stream.write(imageBuffer.toByteArray());
                 stream.write(("\n").getBytes());
-
                 stream.flush();
 
-                //returnHandle("Streaming: ", "Live", (long) imageBuffer.size());
-
-                h.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        Log.d("DEBUG", "RUN sendBoundary delay");
-                        sendBoundary();
-                    }
-                }, 1000);
+                returnHandle("Streaming: ", "Live", (long) imageBuffer.size());
+                
             } catch (IOException e) {
-                Log.d("ERROR:", "Boundary error: " + e.getLocalizedMessage());
+                Log.d("ERROR:", "Streaming error: " + e.getLocalizedMessage());
             }
         }
     }
