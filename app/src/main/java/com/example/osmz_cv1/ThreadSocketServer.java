@@ -122,7 +122,7 @@ public class ThreadSocketServer extends Thread {
                         // stream 20 snapshots for testing
                         for (int i = 0; i < 20; i++) {
                             streaming();
-                            Log.d("SERVER", "snap snap");
+                            //Log.d("SERVER", "snap snap");
                             try {
                                 Thread.sleep(300);
                             } catch (InterruptedException e) {

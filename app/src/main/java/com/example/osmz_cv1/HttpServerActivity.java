@@ -2,13 +2,7 @@ package com.example.osmz_cv1;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.ImageFormat;
-import android.graphics.Matrix;
-import android.graphics.Rect;
-import android.graphics.YuvImage;
 import android.os.Bundle;
 import android.app.Activity;
 import android.os.Environment;
@@ -23,33 +17,25 @@ import android.widget.TextView;
 import android.hardware.Camera;
 import android.os.Handler;
 import android.util.Log;
-import android.widget.Toast;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.DecimalFormat;
-import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class HttpServerActivity extends Activity implements OnClickListener{
 
 	private SocketServer s;
 	private double sendSize = 0;
 	public static int maxAvailable = 1;
-	private Timer timer;
-	private TimerTask timerTask;
-	private Handler cameraHandler = new Handler();
-	private byte[] imageBuffer;
 	private Intent intent;
 	public static Handler handler;
 	public static FrameLayout preview;
     public static final Camera mCamera = getCameraInstance();
     public static CameraPreview mPreview;
+	//private Handler cameraHandler = new Handler();
 	
     @SuppressLint("HandlerLeak")
 	@Override
@@ -74,25 +60,6 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		//boundary fix
 		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 		StrictMode.setThreadPolicy(policy);
-
-		// Task with save images
-		Button captureButton = (Button) findViewById(R.id.button_capture);
-		/*captureButton.setOnClickListener(
-				new View.OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						startTimer();}
-				}
-		);*/
-
-		Button stopButton = (Button) findViewById(R.id.button_capture_stop);
-		/*stopButton.setOnClickListener(
-				new View.OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						stoptimertask(v);}
-				}
-		);*/
 
 		TextView handleTitle = (TextView)findViewById(R.id.handleTitle);
 		handleTitle.setTextColor(Color.parseColor("#111111"));
@@ -124,9 +91,6 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 			@Override
 			public void handleMessage(Message msg) {
 				Bundle bundle = msg.getData();
-
-
-
 				String typeOfRequest = bundle.getString("REQUEST");
 				String name = bundle.getString("NAME");
 				Float size = bundle.getFloat("SIZE");
@@ -171,6 +135,7 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		// TODO Auto-generated method stub
 		if (v.getId() == R.id.button1) {
 			startService(intent);
+			//savePictures();
 		}
 		if (v.getId() == R.id.button2) {
 
@@ -217,43 +182,22 @@ public class HttpServerActivity extends Activity implements OnClickListener{
         }
     };
     //endregion
+/* ukol 1 ukládání obrázku
+	public void savePictures(){
+		try {
+			mCamera.takePicture(null, null, mPicture);
+		} catch (Exception e) {
+			Log.d("ERROR", "save error: " + e.getLocalizedMessage());
+		}
 
-    //region Timer for take and save picture
-    public void startTimer() {
-        timer = new Timer();
-        initializeTimerTask();
-        timer.schedule(timerTask, 1000, 5000); //
-    }
+		cameraHandler.postDelayed(new Runnable() {
+			@Override
+			public void run() {
+				savePictures();
+			}
+		}, 5000);
+	}
 
-    public void stoptimertask(View v) {
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
-        }
-    }
-
-    public void initializeTimerTask() {
-        timerTask = new TimerTask() {
-            public void run() {
-                Log.d("SERVER", "Picture taken");
-                mCamera.takePicture(null, null, mPicture);
-
-                //use a handler to run a toast that shows the current timestamp
-                handler.post(new Runnable() {
-                    public void run() {
-                        //get the current timeStamp
-                        Calendar calendar = Calendar.getInstance();
-                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd:MMMM:yyyy HH:mm:ss a");
-                        final String strDate = simpleDateFormat.format(calendar.getTime());
-                        //show the toast
-                        int duration = Toast.LENGTH_SHORT;
-                        Toast toast = Toast.makeText(getApplicationContext(), strDate, duration);
-                        toast.show();
-                    }
-                });
-            }
-        };
-    }
-    //endregion
+ */
 }
 

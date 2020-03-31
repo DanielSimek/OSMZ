@@ -4,11 +4,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.Semaphore;
-
-
-import android.content.Context;
-import android.content.pm.PackageManager;
-import android.hardware.Camera;
 import android.os.Handler;
 import android.util.Log;
 
@@ -19,7 +14,7 @@ public class SocketServer extends Thread {
 	boolean bRunning;
 	private Handler handle;
 	private Semaphore semaphoreAvailable;
-	private int maxThreads = 1;
+	private int maxThreads;
 	private SocketServerService service;
 
 
