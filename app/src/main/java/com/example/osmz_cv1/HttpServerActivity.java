@@ -1,12 +1,12 @@
 package com.example.osmz_cv1;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.os.Bundle;
@@ -40,15 +40,19 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 
 	private SocketServer s;
 	private double sendSize = 0;
-	private int maxAvailable;
-	private Camera mCamera;
-	private CameraPreview mPreview;
+	public static int maxAvailable = 1;
 	private Timer timer;
 	private TimerTask timerTask;
 	private Handler cameraHandler = new Handler();
 	private byte[] imageBuffer;
+	private Intent intent;
+	public static Handler handler;
+	public static FrameLayout preview;
+    public static final Camera mCamera = getCameraInstance();
+    public static CameraPreview mPreview;
 	
-    @Override
+    @SuppressLint("HandlerLeak")
+	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_http_server);
@@ -56,43 +60,45 @@ public class HttpServerActivity extends Activity implements OnClickListener{
         Button btn1 = (Button)findViewById(R.id.button1);
         Button btn2 = (Button)findViewById(R.id.button2);
 
-        /*
-         * Camera init
-         */
-		mCamera = getCameraInstance();
-		mCamera.setPreviewCallback(mPrevCall);
-		// Create our Preview view and set it as the content of our activity.
-		mPreview = new CameraPreview(this, this.mCamera, this.mPicture);
-		FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
-		preview.addView(mPreview);
-		mCamera.startPreview();
+
+        // Create our Preview view and set it as the content of our activity.
+        mPreview = new CameraPreview(this, this.mCamera, this.mPicture);
+        FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
+        preview.addView(mPreview);
+        mCamera.startPreview();
+
+		preview = (FrameLayout) findViewById(R.id.camera_preview);
+
+		intent = new Intent(this, SocketServerService.class);
+
 		//boundary fix
 		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 		StrictMode.setThreadPolicy(policy);
 
 		// Task with save images
 		Button captureButton = (Button) findViewById(R.id.button_capture);
-		captureButton.setOnClickListener(
+		/*captureButton.setOnClickListener(
 				new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
 						startTimer();}
 				}
-		);
+		);*/
 
 		Button stopButton = (Button) findViewById(R.id.button_capture_stop);
-		stopButton.setOnClickListener(
+		/*stopButton.setOnClickListener(
 				new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
 						stoptimertask(v);}
 				}
-		);
+		);*/
 
 		TextView handleTitle = (TextView)findViewById(R.id.handleTitle);
 		handleTitle.setTextColor(Color.parseColor("#111111"));
 
-		TextView textSize = (TextView) findViewById(R.id.textSize);
+		final TextView text = (TextView) findViewById(R.id.threadsLog);
+		final TextView textSize = (TextView) findViewById(R.id.textSize);
 		textSize.setTextColor(Color.parseColor("#111111"));
 
 		TextView threadsText = (TextView) findViewById(R.id.numberThreads);
@@ -112,74 +118,64 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 				maxAvailable = newVal;
 			}
 		});
+
+		//region Message Handler
+		handler = new Handler() {
+			@Override
+			public void handleMessage(Message msg) {
+				Bundle bundle = msg.getData();
+
+
+
+				String typeOfRequest = bundle.getString("REQUEST");
+				String name = bundle.getString("NAME");
+				Float size = bundle.getFloat("SIZE");
+
+				// get current time
+				Date currentTime = Calendar.getInstance().getTime();
+
+				// Total size counter
+				sendSize += size;
+				double totalSize = 0;
+				String totalSizeExtension;
+				if (sendSize > 999) {
+					totalSize = (sendSize / 1024);
+					totalSizeExtension = "KB";
+				} else if (sendSize / 1024 > 999) {
+					totalSize = (sendSize / 1024) / 1024;
+					totalSizeExtension = "MB";
+				} else {
+					totalSizeExtension = "B";
+				}
+				textSize.setText("Velikost přenesených dat: " + roundTwoDecimals(totalSize) + totalSizeExtension);
+
+				// Thread log
+				String sizeExtension;
+				if (size > 999) {
+					size = (size / 1024);
+					sizeExtension = "KB";
+				} else if (size / 1024 > 999) {
+					size = (size / 1024) / 1024;
+					sizeExtension = "MB";
+				} else {
+					sizeExtension = "B";
+				}
+				text.setText("At: " + currentTime + "\n" + typeOfRequest + "\t" + name + "\n" + "Velikost souboru" + "\t" + roundTwoDecimals(size) + sizeExtension + "\t" + "\n" + "\n" + text.getText());
+			}
+		};
+		//endregion
     }
-
-    //region Message Handler
-	@SuppressLint("HandlerLeak")
-	private Handler handler = new Handler() {
-		@Override
-		public void handleMessage(Message msg) {
-			Bundle bundle = msg.getData();
-
-			TextView text = (TextView)findViewById(R.id.threadsLog);
-			TextView textSize = (TextView) findViewById(R.id.textSize);
-
-			String typeOfRequest = bundle.getString("REQUEST");
-			String name = bundle.getString("NAME");
-			Float size = bundle.getFloat("SIZE");
-
-			// get current time
-			Date currentTime = Calendar.getInstance().getTime();
-
-			// Total size counter
-			sendSize += size;
-			double totalSize = 0;
-			String totalSizeExtension;
-			if(sendSize > 999) {
-				totalSize = (sendSize/1024);
-				totalSizeExtension = "KB";
-			}
-			else if (sendSize/1024 > 999){
-				totalSize = (sendSize/1024)/1024;
-				totalSizeExtension = "MB";
-			}
-			else {
-				totalSizeExtension = "B";
-			}
-			textSize.setText("Velikost přenesených dat: " +  roundTwoDecimals(totalSize) + totalSizeExtension);
-
-			// Thread log
-			String sizeExtension;
-			if(size > 999) {
-				size = (size/1024);
-				sizeExtension = "KB";
-			}
-			else if (size/1024 > 999){
-				size = (size/1024)/1024;
-				sizeExtension = "MB";
-			}
-			else {
-				sizeExtension = "B";
-			}
-			text.setText("At: " + currentTime + "\n" + typeOfRequest + "\t" + name + "\n" + "Velikost souboru" + "\t" + roundTwoDecimals(size) + sizeExtension + "\t" + "\n" + "\n" + text.getText());
-		}
-	};
-	//endregion
 
 	@Override
 	public void onClick(View v) {
 		// TODO Auto-generated method stub
 		if (v.getId() == R.id.button1) {
-			s = new SocketServer(this.handler, this.maxAvailable, this);
-			s.start();
+			startService(intent);
 		}
 		if (v.getId() == R.id.button2) {
-			s.close();
-			try {
-				s.join();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
+
+			//stop services
+			stopService(intent);
 		}
 	}
 
@@ -188,118 +184,76 @@ public class HttpServerActivity extends Activity implements OnClickListener{
 		return Double.valueOf(twoDForm.format(d));
 	}
 
-	public static Camera getCameraInstance(){
-		Camera c = null;
-		try {
-			c = Camera.open();
-		}
-		catch (Exception e){
-			Log.d("SERVER", "Camera fail");
-		}
-		return c;
-	}
+    public static Camera getCameraInstance(){
+        Camera c = null;
+        try {
+            c = Camera.open();
+        }
+        catch (Exception e){
+            Log.d("SERVER", "Camera fail");
+        }
+        return c;
+    }
 
-	//region Timer for take and save picture
-	public void startTimer() {
-		timer = new Timer();
-		initializeTimerTask();
-		timer.schedule(timerTask, 1000, 5000); //
-	}
+    //region /PictureCallback
+    private Camera.PictureCallback mPicture = new Camera.PictureCallback()
+    {
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera)
+        {
+            mCamera.startPreview();
 
-	public void stoptimertask(View v) {
-		if (timer != null) {
-			timer.cancel();
-			timer = null;
-		}
-	}
+            File pictureFile = new File(Environment.getExternalStorageDirectory().getPath() + "/OSMZ" + File.separator + "snapchot.jpg");
 
-	public void initializeTimerTask() {
-		timerTask = new TimerTask() {
-			public void run() {
-				Log.d("SERVER", "Picture taken");
-				mCamera.takePicture(null, null, mPicture);
+            try {
+                FileOutputStream fos = new FileOutputStream(pictureFile);
+                fos.write(data);
+                fos.close();
+            } catch (FileNotFoundException e) {
+                Log.d("CAMERA", "File not found: " + e.getMessage());
+            } catch (IOException e) {
+                Log.d("CAMERA", "Error accessing file: " + e.getMessage());
+            }
+        }
+    };
+    //endregion
 
-				//use a handler to run a toast that shows the current timestamp
-				handler.post(new Runnable() {
-					public void run() {
-						//get the current timeStamp
-						Calendar calendar = Calendar.getInstance();
-						SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd:MMMM:yyyy HH:mm:ss a");
-						final String strDate = simpleDateFormat.format(calendar.getTime());
-						//show the toast
-						int duration = Toast.LENGTH_SHORT;
-						Toast toast = Toast.makeText(getApplicationContext(), strDate, duration);
-						toast.show();
-					}
-				});
-			}
-		};
-	}
-	//endregion
+    //region Timer for take and save picture
+    public void startTimer() {
+        timer = new Timer();
+        initializeTimerTask();
+        timer.schedule(timerTask, 1000, 5000); //
+    }
 
-	//region PreviewCallback
-	private Camera.PreviewCallback mPrevCall = new Camera.PreviewCallback()
-	{
-		@Override
-		public void onPreviewFrame(byte[] bytes, Camera camera)
-		{
-			try {
-				imageBuffer = convertoToJpeg(bytes, camera);
-			} catch (Exception e) {
-				Log.d("ERROR", "convert image error");
-			}
-		}
-	};
-	//endregion
+    public void stoptimertask(View v) {
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+    }
 
-	public byte[] convertoToJpeg(byte[] data, Camera camera) {
-		YuvImage image = new YuvImage(data, ImageFormat.NV21, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height, null);
+    public void initializeTimerTask() {
+        timerTask = new TimerTask() {
+            public void run() {
+                Log.d("SERVER", "Picture taken");
+                mCamera.takePicture(null, null, mPicture);
 
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		image.compressToJpeg(new Rect(0, 0, camera.getParameters().getPreviewSize().width, camera.getParameters().getPreviewSize().height), 100, baos);//this line decreases the image quality
-
-		return baos.toByteArray();
-	}
-
-	public static Bitmap rotate(Bitmap bitmap, int degree) {
-		int w = bitmap.getWidth();
-		int h = bitmap.getHeight();
-
-		Matrix mtx = new Matrix();
-		mtx.setRotate(degree);
-
-		return Bitmap.createBitmap(bitmap, 0, 0, w, h, mtx, true);
-	}
-
-	//region /PictureCallback
-	private Camera.PictureCallback mPicture = new Camera.PictureCallback()
-	{
-		@Override
-		public void onPictureTaken(byte[] data, Camera camera)
-		{
-			mCamera.startPreview();
-
-			File pictureFile = new File(Environment.getExternalStorageDirectory().getPath() + "/OSMZ" + File.separator + "snapchot.jpg");
-
-			try {
-				FileOutputStream fos = new FileOutputStream(pictureFile);
-				fos.write(data);
-				fos.close();
-			} catch (FileNotFoundException e) {
-				Log.d("CAMERA", "File not found: " + e.getMessage());
-			} catch (IOException e) {
-				Log.d("CAMERA", "Error accessing file: " + e.getMessage());
-			}
-		}
-	};
-	//endregion
-
-	public byte[] takePicture() {
-		Bitmap rotateImageData = BitmapFactory.decodeByteArray(imageBuffer, 0, imageBuffer.length);
-		rotateImageData = rotate(rotateImageData, 90);
-		ByteArrayOutputStream stream = new ByteArrayOutputStream();
-		rotateImageData.compress(Bitmap.CompressFormat.JPEG,100,stream);
-		return stream.toByteArray();
-	}
+                //use a handler to run a toast that shows the current timestamp
+                handler.post(new Runnable() {
+                    public void run() {
+                        //get the current timeStamp
+                        Calendar calendar = Calendar.getInstance();
+                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd:MMMM:yyyy HH:mm:ss a");
+                        final String strDate = simpleDateFormat.format(calendar.getTime());
+                        //show the toast
+                        int duration = Toast.LENGTH_SHORT;
+                        Toast toast = Toast.makeText(getApplicationContext(), strDate, duration);
+                        toast.show();
+                    }
+                });
+            }
+        };
+    }
+    //endregion
 }
 

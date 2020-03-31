@@ -20,14 +20,14 @@ public class SocketServer extends Thread {
 	private Handler handle;
 	private Semaphore semaphoreAvailable;
 	private int maxThreads = 1;
-	private HttpServerActivity activity;
+	private SocketServerService service;
 
 
-	public SocketServer(Handler h, int maxAvailable, HttpServerActivity a) {
+	public SocketServer(Handler h, int maxAvailable, SocketServerService service) {
 		this.handle = h;
 		this.maxThreads = maxAvailable;
 		this.semaphoreAvailable = new Semaphore(this.maxThreads, true);
-		this.activity = a;
+		this.service = service;
 	}
 	
 	public void close() {
@@ -55,7 +55,7 @@ public class SocketServer extends Thread {
 					this.semaphoreAvailable.acquire();
 					Log.d("SERVER", "Po vyžádání, zbývající volné:" + this.semaphoreAvailable.availablePermits());
 
-					ThreadSocketServer p = new ThreadSocketServer(s, this.handle, this.semaphoreAvailable, this.activity);
+					ThreadSocketServer p = new ThreadSocketServer(s, this.handle, this.semaphoreAvailable, this.service);
 					p.start();
 
 				} catch (InterruptedException e) {
