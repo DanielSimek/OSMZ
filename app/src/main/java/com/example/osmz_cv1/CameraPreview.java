@@ -1,7 +1,6 @@
 package com.example.osmz_cv1;
 
 import android.content.Context;
-import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.util.Log;
 import android.view.SurfaceHolder;

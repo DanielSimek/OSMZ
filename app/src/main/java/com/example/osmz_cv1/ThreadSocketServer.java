@@ -27,16 +27,16 @@ public class ThreadSocketServer extends Thread {
     private Socket s;
     private Handler h;
     private Semaphore semaphore;
-    private HttpServerActivity activity;
+    private SocketServerService service;
     private ByteArrayOutputStream imageBuffer;
     private static DataOutputStream stream;
     private boolean canClose = true;
 
-    ThreadSocketServer(Socket s, Handler handle, Semaphore semaphoreAvailable, HttpServerActivity a) {
+    ThreadSocketServer(Socket s, Handler handle, Semaphore semaphoreAvailable, SocketServerService service) {
         this.s = s;
         this.h = handle;
         this.semaphore = semaphoreAvailable;
-        this.activity = a;
+        this.service = service;
         this.imageBuffer = new ByteArrayOutputStream();
     }
 
@@ -98,14 +98,14 @@ public class ThreadSocketServer extends Thread {
                     break;
                 }
                 case "/camera/snapshot/":
-                    byte[] picture = activity.takePicture();
+                    byte[] picture = service.takePicture();
                     out.write("HTTP/1.0 200 OK\r\n");
                     out.write("Content-Length: " + picture.length + "\r\n");
                     out.write("Content-Type: image/jpeg\r\n");
                     out.write("\r\n");
                     out.flush();
 
-                    o.write(activity.takePicture());
+                    o.write(service.takePicture());
                     o.flush();
 
                     returnHandle("Camera snapchot: ", fileName, picture.length);
@@ -119,12 +119,26 @@ public class ThreadSocketServer extends Thread {
                         stream.flush();
                         canClose = false;
 
+                        // stream 20 snapshots for testing
+                        for (int i = 0; i < 20; i++) {
+                            streaming();
+                            //Log.d("SERVER", "snap snap");
+                            try {
+                                Thread.sleep(300);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        /*
+                        * no limit stream
+                        *
                         h.postDelayed(new Runnable() {
                             @Override
                             public void run() {
                                 streaming();
                             }
                         }, 500);
+                        */
 
                         o.flush();
                     } catch (IOException e) {
@@ -281,7 +295,7 @@ public class ThreadSocketServer extends Thread {
     private void streaming() {
         if (stream != null) {
             try {
-                byte[] imagebuf = activity.takePicture();
+                byte[] imagebuf = service.takePicture();
 
                 imageBuffer.reset();
                 imageBuffer.write(imagebuf);
