@@ -16,7 +16,7 @@ public class SocketServer extends Thread {
 	private Semaphore semaphoreAvailable;
 	private int maxThreads;
 	private SocketServerService service;
-
+	//private HttpServerActivity activity;
 
 	public SocketServer(Handler h, int maxAvailable, SocketServerService service) {
 		this.handle = h;
